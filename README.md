@@ -7,9 +7,9 @@ running on Proxmox hosted on an old x86 PC with 16Gb of memory. The setup is des
 efficient and scalable Kubernetes environment for testing and development.  
 The cluster consists of 3 control plane nodes and 2 worker nodes, providing a solid foundation for deploying and
 managing containerized applications. The use of `K3s` ensures minimal resource overhead, making it ideal for
-environments
-with limited hardware resources.
+environments with limited hardware resources.
 
+Project gracioulsy provided by [Wim van 
 ## VM overview
 
 | VM Name       | MAC Address       | IP Address   | Memory (Gb) | Disk Size (Gb) | CPU Cores |
@@ -57,7 +57,7 @@ qm set 218 --onboot 1
 qm set 218 --ciuser jurre
 qm set 218 --sshkey ~/.ssh/id_rsa.pub
 qm set 218 --ciupgrade 1
-qm set 218 --ipconfig0 ip=172.16.12.22/24,gw=172.16.12.1
+qm set 218 --ipconfig0 ip=172.16.12.20/24,gw=172.16.12.1
 
 qm clone 9000 219 --name k3s-lb-02
 qm resize 219 scsi0 32G
@@ -72,7 +72,7 @@ qm set 219 --onboot 1
 qm set 219 --ciuser jurre
 qm set 219 --sshkey ~/.ssh/id_rsa.pub
 qm set 219 --ciupgrade 1
-qm set 219 --ipconfig0 ip=172.16.12.22/24,gw=172.16.12.1
+qm set 219 --ipconfig0 ip=172.16.12.21/24,gw=172.16.12.1
 
 qm clone 9000 220 --name k3s-server-01
 qm resize 220 scsi0 32G
@@ -187,7 +187,10 @@ sudo systemctl enable qemu-guest-agent
 curl -L -O https://artifacts.elastic.co/downloads/beats/elastic-agent/elastic-agent-8.17.1-linux-x86_64.tar.gz 
 tar xzvf elastic-agent-8.17.1-linux-x86_64.tar.gz
 cd elastic-agent-8.17.1-linux-x86_64
-sudo ./elastic-agent install --url=https://172.16.12.16:8220 --enrollment-token=VnJjTHpKUUJWdDQxUHc5MUR1TDg6MWtXcHZZYlFRZ3FJVF9vQ21TdUJ0dw== --insecure
+sudo ./elastic-agent install --url=https://172.16.12.16:8220 --enrollment-token=<token> --insecure
+
+#after successful installation remove the .tar.gz file.
+rm elastic-agent-8.17.1-linux-x86_64.tar.gz
 ```
 
 ## Install first server (control plane node)
@@ -224,16 +227,76 @@ sudo curl -sfL https://get.k3s.io |sh -s - server --disable="traefik" --disable=
 ```
 
 ## Install a cluster load balancer (HAProxy) on the two additional servers
-
+Make sure all server (control plane nodes) contain the following config file.
 ```bash
+# /etc/rancher/k3s/config.yaml
+tls-san: 172.16.12.19
+```
 
+### Configuring the HAProxy
+Install HAProxy and KeepAlived
+```bash
+sudo apt-get install haproxy keepalived
+```
+
+Add the following to the /etc/haproxy/haproxy.cfg file
+```bash
+frontend k3s-frontend
+    bind *:6443
+    mode tcp
+    option tcplog
+    default_backend k3s-backend
+
+backend k3s-backend
+    mode tcp
+    option tcp-check
+    balance roundrobin
+    default-server inter 10s downinter 5s
+    server server-1 172.16.12.22:6443 check
+    server server-2 172.16.12.23:6443 check
+    server server-3 172.16.12.24:6443 check
+```
+
+Add the following to /etc/keepalived/keepalived.conf
+```bash
+global_defs {
+  enable_script_security
+  script_user root
+}
+
+vrrp_script chk_haproxy {
+    script 'killall -0 haproxy' # faster than pidof
+    interval 2
+}
+
+vrrp_instance haproxy-vip {
+    interface eth0
+    state <STATE> # MASTER on lb-1, BACKUP on lb-2
+    priority <PRIORITY> # 200 on lb-1, 100 on lb-2
+
+    virtual_router_id 51
+
+    virtual_ipaddress {
+        10.10.10.100/24
+    }
+
+    track_script {
+        chk_haproxy
+    }
+}
+```
+
+Restart HAProxy and KeepAlived
+```bash
+sudo systemctl restart haproxy
+sudo systemctl restart keepalived
 ```
 
 ## Install agents (worker nodes)
 
 ```bash
 export INSTALL_K3S_VERSION=v1.31.5+k3s1
-export K3S_URL=https://172.16.12.22:6443
+export K3S_URL=https://172.16.12.19:6443 # Virtual IP address of the load balancer
 export K3S_TOKEN=<token from first server>
 
 sudo curl -sfL https://get.k3s.io | sh -s - agent
