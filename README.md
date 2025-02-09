@@ -305,31 +305,30 @@ sudo curl -sfL https://get.k3s.io | sh -s - agent
 ## Set up kubectl to use the K3s kubeconfig file
 
 From one of the servers copy the `k3s.yaml` file to your local machine (example to $HOME/.kube/k3s.yaml).  
-Edit the `k3s.yaml` file and correct the server address with the IP address of one of the servers (control planes).   
+Edit the `k3s.yaml` file and correct the server address with the virtual IP address of load balancer.   
 The `KUBECONFIG` environment variable can now be used to specify the `k3s.yaml` file and use it with `kubectl`.
 
 ```bash
 export KUBECONFIG=$HOME/.kube/k3s.yaml
 
 kubectl get nodes
-NAME            STATUS   ROLES                       AGE    VERSION
-k3s-server-01   Ready    control-plane,etcd,master   163m   v1.30.6+k3s1
-k3s-server-02   Ready    control-plane,etcd,master   17m    v1.30.6+k3s1
-k3s-server-03   Ready    control-plane,etcd,master   15m    v1.30.6+k3s1
-k3s-worker-01   Ready    <none>                      108s   v1.30.6+k3s1
-k3s-worker-02   Ready    <none>                      23s    v1.30.6+k3s1
+NAME            STATUS   ROLES                       AGE     VERSION
+k3s-server-01   Ready    control-plane,etcd,master   3h12m   v1.31.5+k3s1
+k3s-server-02   Ready    control-plane,etcd,master   149m    v1.31.5+k3s1
+k3s-server-03   Ready    control-plane,etcd,master   117m    v1.31.5+k3s1
+k3s-worker-01   Ready    <none>                      4m2s    v1.31.5+k3s1
+k3s-worker-02   Ready    <none>                      3m31s   v1.31.5+k3s1
+k3s-worker-03   Ready    <none>                      3m33s   v1.31.5+k3s1
 
 kubectl get nodes -o wide
-NAME            STATUS   ROLES                       AGE     VERSION        INTERNAL-IP     EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION     CONTAINER-RUNTIME
-k3s-server-01   Ready    control-plane,etcd,master   163m    v1.30.6+k3s1   192.168.1.201   <none>        Ubuntu 24.04.1 LTS   6.8.0-49-generic   containerd://1.7.22-k3s1
-k3s-server-02   Ready    control-plane,etcd,master   17m     v1.30.6+k3s1   192.168.1.202   <none>        Ubuntu 24.04.1 LTS   6.8.0-49-generic   containerd://1.7.22-k3s1
-k3s-server-03   Ready    control-plane,etcd,master   15m     v1.30.6+k3s1   192.168.1.203   <none>        Ubuntu 24.04.1 LTS   6.8.0-49-generic   containerd://1.7.22-k3s1
-k3s-worker-01   Ready    <none>                      2m10s   v1.30.6+k3s1   192.168.1.211   <none>        Ubuntu 24.04.1 LTS   6.8.0-49-generic   containerd://1.7.22-k3s1
-k3s-worker-02   Ready    <none>                      45s     v1.30.6+k3s1   192.168.1.212   <none>        Ubuntu 24.04.1 LTS   6.8.0-49-generic   containerd://1.7.22-k3s1
+NAME            STATUS   ROLES                       AGE     VERSION        INTERNAL-IP    EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION     CONTAINER-RUNTIME
+k3s-server-01   Ready    control-plane,etcd,master   3h12m   v1.31.5+k3s1   172.16.12.22   <none>        Ubuntu 24.04.1 LTS   6.8.0-52-generic   containerd://1.7.23-k3s2
+k3s-server-02   Ready    control-plane,etcd,master   150m    v1.31.5+k3s1   172.16.12.23   <none>        Ubuntu 24.04.1 LTS   6.8.0-52-generic   containerd://1.7.23-k3s2
+k3s-server-03   Ready    control-plane,etcd,master   117m    v1.31.5+k3s1   172.16.12.24   <none>        Ubuntu 24.04.1 LTS   6.8.0-52-generic   containerd://1.7.23-k3s2
+k3s-worker-01   Ready    <none>                      4m40s   v1.31.5+k3s1   172.16.12.25   <none>        Ubuntu 24.04.1 LTS   6.8.0-52-generic   containerd://1.7.23-k3s2
+k3s-worker-02   Ready    <none>                      4m9s    v1.31.5+k3s1   172.16.12.26   <none>        Ubuntu 24.04.1 LTS   6.8.0-52-generic   containerd://1.7.23-k3s2
+k3s-worker-03   Ready    <none>                      4m11s   v1.31.5+k3s1   172.16.12.27   <none>        Ubuntu 24.04.1 LTS   6.8.0-52-generic   containerd://1.7.23-k3s2
 ```
-
-**Using the IP address of a single server does not ensure high availability for the Kubernetes API Server.**  
-Implementing a highly available Kubernetes API Server setup is still on the to-do list.
 
 ## Tainting Control Plane Nodes
 
