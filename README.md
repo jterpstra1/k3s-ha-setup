@@ -44,6 +44,36 @@ Create VMs based on template and start them:
 ```bash
 #!/bin/bash
 
+qm clone 9000 218 --name k3s-lb-01
+qm resize 218 scsi0 32G
+qm set 218 --net0 virtio,bridge=vmbr0,tag=12
+qm set 218 --cpu host
+qm set 218 --memory 8192
+qm set 218 --cores 2
+qm set 218 --ostype l26
+qm set 218 --tags k3s,prd,proxy
+qm set 218 --localtime 1
+qm set 218 --onboot 1
+qm set 218 --ciuser jurre
+qm set 218 --sshkey ~/.ssh/id_rsa.pub
+qm set 218 --ciupgrade 1
+qm set 218 --ipconfig0 ip=172.16.12.22/24,gw=172.16.12.1
+
+qm clone 9000 219 --name k3s-lb-02
+qm resize 219 scsi0 32G
+qm set 219 --net0 virtio,bridge=vmbr0,tag=12
+qm set 219 --cpu host
+qm set 219 --memory 8192
+qm set 219 --cores 2
+qm set 219 --ostype l26
+qm set 219 --tags k3s,prd,proxy
+qm set 219 --localtime 1
+qm set 219 --onboot 1
+qm set 219 --ciuser jurre
+qm set 219 --sshkey ~/.ssh/id_rsa.pub
+qm set 219 --ciupgrade 1
+qm set 219 --ipconfig0 ip=172.16.12.22/24,gw=172.16.12.1
+
 qm clone 9000 220 --name k3s-server-01
 qm resize 220 scsi0 32G
 qm set 220 --net0 virtio,bridge=vmbr0,tag=12
@@ -51,7 +81,7 @@ qm set 220 --cpu host
 qm set 220 --memory 8192
 qm set 220 --cores 2
 qm set 220 --ostype l26
-qm set 220 --tags k3s
+qm set 220 --tags k3s,prd,server
 qm set 220 --localtime 1
 qm set 220 --onboot 1
 qm set 220 --ciuser jurre
@@ -66,7 +96,7 @@ qm set 221 --cpu host
 qm set 221 --memory 8192
 qm set 221 --cores 2
 qm set 221 --ostype l26
-qm set 221 --tags k3s
+qm set 221 --tags k3s,prd,server
 qm set 221 --localtime 1
 qm set 221 --onboot 1
 qm set 221 --ciuser jurre
@@ -81,7 +111,7 @@ qm set 222 --cpu host
 qm set 222 --memory 8192
 qm set 222 --cores 2
 qm set 221 --ostype l26
-qm set 222 --tags k3s
+qm set 222 --tags k3s,prd,server
 qm set 222 --localtime 1
 qm set 222 --onboot 1
 qm set 222 --ciuser jurre
@@ -96,7 +126,7 @@ qm set 223 --cpu host
 qm set 223 --memory 16384
 qm set 223 --cores 4
 qm set 223 --ostype l26
-qm set 223 --tags k3s
+qm set 223 --tags k3s,prd,worker
 qm set 223 --localtime 1
 qm set 223 --onboot 1
 qm set 223 --ciuser jurre
@@ -111,7 +141,7 @@ qm set 224 --cpu host
 qm set 224 --memory 16384
 qm set 224 --cores 4
 qm set 224 --ostype l26
-qm set 224 --tags k3s
+qm set 224 --tags k3s,prd,worker
 qm set 224 --localtime 1
 qm set 224 --onboot 1
 qm set 224 --ciuser jurre
@@ -126,7 +156,7 @@ qm set 225 --cpu host
 qm set 225 --memory 16384
 qm set 225 --cores 4
 qm set 225 --ostype l26
-qm set 225 --tags k3s
+qm set 225 --tags k3s,prd,worker
 qm set 225 --localtime 1
 qm set 225 --onboot 1
 qm set 225 --ciuser jurre
@@ -134,12 +164,30 @@ qm set 225 --sshkey ~/.ssh/id_rsa.pub
 qm set 225 --ciupgrade 1
 qm set 225 --ipconfig0 ip=172.16.12.27/24,gw=172.16.12.1
 
+qm start 218
+qm start 219
 qm start 220
 qm start 221
 qm start 222
 qm start 223
 qm start 224
 qm start 225
+```
+
+## Prepare VMS for use in homelab environment
+A few agents (qemu-guest-agent and elastic agent (for now)) need to be installed before setting up the `K3s` cluster. This is done on all VMs. 
+```bash
+# install qemu-guest-agent
+sudo apt-get install qemu-guest-agent
+
+# enable and start the service
+sudo systemctl enable qemu-guest-agent
+
+# install elastic agent for monitoring
+curl -L -O https://artifacts.elastic.co/downloads/beats/elastic-agent/elastic-agent-8.17.1-linux-x86_64.tar.gz 
+tar xzvf elastic-agent-8.17.1-linux-x86_64.tar.gz
+cd elastic-agent-8.17.1-linux-x86_64
+sudo ./elastic-agent install --url=https://172.16.12.16:8220 --enrollment-token=VnJjTHpKUUJWdDQxUHc5MUR1TDg6MWtXcHZZYlFRZ3FJVF9vQ21TdUJ0dw== --insecure
 ```
 
 ## Install first server (control plane node)
@@ -168,11 +216,17 @@ sudo cat /var/lib/rancher/k3s/server/token
 ## Install additional servers (control plane nodes)
 
 ```bash
-export INSTALL_K3S_VERSION=v1.30.6+k3s1
+export INSTALL_K3S_VERSION=v1.31.5+k3s1
 export K3S_URL=https://172.16.12.22:6443
 export K3S_TOKEN=<token from first server>
 
 sudo curl -sfL https://get.k3s.io |sh -s - server --disable="traefik" --disable="servicelb"
+```
+
+## Install a cluster load balancer (HAProxy) on the two additional servers
+
+```bash
+
 ```
 
 ## Install agents (worker nodes)
